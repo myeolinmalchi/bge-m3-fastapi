@@ -9,6 +9,7 @@
 git clone https://github.com/myeolinmalchi/bge-m3-fastapi.git
 cd bge-m3-fastapi
 
+poetry shell
 poetry install --no-root
 uvicorn main:app --host=0.0.0.0 --port=8000 --timeout-keep-alive=6000
 ```
