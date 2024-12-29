@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "pnume-chat-embeddings"
+version = "0.1.0"
+description = ""
+authors = ["myeolinmalchi <rkd2274@pusan.ac.kr>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+black = "^24.10.0"
+numpy = "<2"
+fastapi = {extras = ["standard"], version = "^0.115.6"}
+kss = "^6.0.4"
+onnxruntime = "1.17.0"
+transformers = "4.37.2"
+tqdm = "^4.67.1"
+mecab-python3 = "^1.0.10"
+konlpy = "^0.6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
