@@ -5,11 +5,21 @@
 
 ## Usage
 
-```bash
-git clone https://github.com/myeolinmalchi/bge-m3-fastapi.git
-cd bge-m3-fastapi
+1. Clone this repository
+    ```bash
+    git clone https://github.com/myeolinmalchi/bge-m3-fastapi.git
+    cd bge-m3-fastapi
+    ```
 
-poetry shell
-poetry install --no-root
-uvicorn main:app --host=0.0.0.0 --port=8000 --timeout-keep-alive=6000
-```
+2. Install dependencies
+    ```bash
+    poetry shell
+    poetry install --no-root
+    ```
+
+3. Run `main.py`
+    ```bash
+    poetry run python3.10 main.py --device <device type> --batch_size <batch size>
+        --device: device type for onnxruntime (cpu/cuda, default: cpu)
+        --batch_size: concurrency limit for onnxruntime (default: 2)
+    ```
