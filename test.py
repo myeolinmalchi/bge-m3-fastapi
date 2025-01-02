@@ -1,23 +1,9 @@
-from utils.onnx import ONNXPoolExecutor, run_onnx_pool
-from multiprocessing import cpu_count
+from utils.onnxutils import *
 
-from utils.preprocess import split_chunks
+runtime1 = init_runtime(device="cpu", N=2)
+runtime2 = ONNXPoolExecutor("BAAI/bge-m3", "models/model.onnx")
+runtime3 = ONNXCudaRuntime("BAAI/bge-m3", "models/model.onnx")
 
-CPUs = cpu_count()
-pool = ONNXPoolExecutor(N=2)
-
-if __name__ == "__main__":
-    pool.init_task()
-    queries = [
-        "테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다. 테스트입니다."
-        for _ in range(30)
-    ]
-
-    chunks = [split_chunks(query) for query in queries]
-    results = [run_onnx_pool(_chunks) for _chunks in chunks]
-    pool.release_task()
-    from pprint import pprint
-
-    pprint(results)
-
-    print(len(results))
+print(runtime1)
+print(runtime2)
+print(runtime3)
