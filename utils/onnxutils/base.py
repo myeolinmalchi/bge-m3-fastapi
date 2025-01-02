@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
 import threading
-from typing import Any, List, Literal, overload
+from typing import List, Literal, overload
 
 from onnxruntime import InferenceSession
 import onnxruntime as ort
@@ -13,9 +12,10 @@ class ONNXRuntime:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
+        if ONNXRuntime._instance is None:
             print("New ONNXRuntime instance has been created")
             ONNXRuntime._instance = super().__new__(cls)
+        assert ONNXRuntime._instance is not None
         return ONNXRuntime._instance
 
     def __init__(
@@ -71,3 +71,18 @@ class ONNXRuntime:
 
     def release(self):
         raise NotImplementedError()
+
+
+def init_runtime(
+    tokenizer_path: str = "BAAI/bge-m3",
+    model_path: str = "models/model.onnx",
+    device: Literal["cpu", "cuda"] = "cpu",
+    N: int = 2,
+) -> ONNXRuntime:
+    import os
+    from .cpu import ONNXPoolExecutor
+    from .cuda import ONNXCudaRuntime
+
+    if device == "cpu" or os.system("nvidia-smi") != 0:
+        return ONNXPoolExecutor(tokenizer_path, model_path, N)
+    return ONNXCudaRuntime(tokenizer_path, model_path, N)

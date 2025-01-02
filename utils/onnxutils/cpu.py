@@ -5,7 +5,7 @@ from typing import List, overload
 import onnxruntime as ort
 
 from schemas.embed import EmbedResult
-from utils.onnxutils import ONNXRuntime
+from .base import ONNXRuntime
 
 
 class ONNXPoolExecutor(ONNXRuntime):

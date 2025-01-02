@@ -2,7 +2,7 @@ from typing import List, overload
 import onnxruntime as ort
 
 from schemas.embed import EmbedResult
-from utils.onnxutils import ONNXRuntime
+from .base import ONNXRuntime
 
 
 # TODO: batch size 늘려서 테스트 필요
@@ -10,7 +10,7 @@ class ONNXCudaRuntime(ONNXRuntime):
     """onnx runtime wrapper class for cuda environment"""
 
     def __new__(cls, *args, **kwargs):
-        super().__new__(cls, args, kwargs)
+        return super().__new__(cls, *args, **kwargs)
 
     def __init__(
         self,
