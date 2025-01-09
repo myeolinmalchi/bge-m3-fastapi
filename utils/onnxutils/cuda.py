@@ -9,18 +9,13 @@ class ONNXCudaRuntime(ONNXRuntime):
 
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls, *args, **kwargs)
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.device_type = "cuda"
+        self.device_id = 0
 
-    def __init__(
         self,
-        tokenizer_path: str,
-        model_path: str,
-        N: int = 1,
     ):
-        super().__init__(tokenizer_path, model_path, N)
-        self.session = ort.InferenceSession(
-            model_path, providers=["CUDAExecutionProvider"]
-        )
-        self.N = N
 
 
 
