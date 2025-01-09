@@ -113,7 +113,7 @@ def init_runtime(
     N: int = 2,
 ) -> ONNXRuntime:
     import os
-    from .cpu import ONNXPoolExecutor
+    from .cpu import ONNXCpuRuntime
     from .cuda import ONNXCudaRuntime
 
     if device == "cpu" or os.system("nvidia-smi") != 0:

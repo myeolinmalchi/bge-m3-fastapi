@@ -11,6 +11,7 @@ from .base import ONNXRuntime
 class ONNXPoolExecutor(ONNXRuntime):
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls, *args, **kwargs)
+class ONNXCpuRuntime(ONNXRuntime):
 
     def __init__(
         self,
