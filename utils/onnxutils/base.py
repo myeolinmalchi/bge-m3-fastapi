@@ -114,12 +114,13 @@ def init_runtime(
     tokenizer_path: str = "BAAI/bge-m3",
     model_path: str = "models/model.onnx",
     device: Literal["cpu", "cuda"] = "cpu",
-    N: int = 2,
+    batch_size: int = 1,
+    max_workers: int = 1,
 ) -> ONNXRuntime:
     import os
     from .cpu import ONNXCpuRuntime
     from .cuda import ONNXCudaRuntime
 
     if device == "cpu" or os.system("nvidia-smi") != 0:
-        return ONNXPoolExecutor(tokenizer_path, model_path, N)
-    return ONNXCudaRuntime(tokenizer_path, model_path, N)
+        return ONNXCpuRuntime(tokenizer_path, model_path, batch_size, max_workers)
+    return ONNXCudaRuntime(tokenizer_path, model_path, batch_size, max_workers)
