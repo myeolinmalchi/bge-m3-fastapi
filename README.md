@@ -5,6 +5,8 @@
 
 ## Usage
 
+### Run in local env
+
 1. Clone this repository
     ```bash
     git clone https://github.com/myeolinmalchi/bge-m3-fastapi.git
@@ -22,4 +24,18 @@
     poetry run python3.10 main.py --device <device type> --batch_size <batch size>
         --device: device type for onnxruntime (cpu/cuda, default: cpu)
         --batch_size: concurrency limit for onnxruntime (default: 2)
+    ```
+
+
+### Run with `docker-compose`
+
+1. Clone this repository
+    ```bash
+    git clone https://github.com/myeolinmalchi/bge-m3-fastapi.git
+    cd bge-m3-fastapi
+    ```
+
+2. Run `docker-compose`
+    ```bash
+    docker-compose up
     ```
