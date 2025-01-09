@@ -1,0 +1,19 @@
+# Ref: https://velog.io/@chickenfondue/nginx-docker-compose%EB%A5%BC-%EC%9D%B4%EC%9A%A9%ED%95%9C-%EB%A6%AC%EB%B2%84%EC%8A%A4-%ED%94%84%EB%A1%9D%EC%8B%9C-%EA%B5%AC%EC%84%B1
+
+version: '3.9'
+services:
+  nginx:
+    image: nginx:1.21.5-alpine
+    ports:
+      - 80:80
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf
+    container_name: myweb-proxy
+    depends_on:
+      - api
+  api:
+    image: bge-m3-fastapi:latest
+    ports:
+      - 8000:8000
+    container_name: bge-m3-fastapi
+    build: ./
