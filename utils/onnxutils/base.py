@@ -90,6 +90,18 @@ class ONNXRuntime:
             results += self.inference(qs, session, tokenizer)
 
         return results
+
+    async def ainference(self, queries: str | List[str]):
+        loop = asyncio.get_event_loop()
+        queries = queries if isinstance(queries, list) else [queries]
+        result = await loop.run_in_executor(self._pool, self.inference, queries)
+        return result
+
+    async def abatch_inference(self, queries: List[str]) -> List[EmbedResult]:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(self._pool, self.batch_inference, queries)
+        return result
+
     def release(self):
         raise NotImplementedError()
 
