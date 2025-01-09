@@ -103,7 +103,11 @@ class ONNXRuntime:
         return result
 
     def release(self):
-        raise NotImplementedError()
+        self._pool.shutdown()
+        for session in self._sessions:
+            del session
+        for tokenizer in self._tokenizers:
+            del tokenizer
 
 
 def init_runtime(
