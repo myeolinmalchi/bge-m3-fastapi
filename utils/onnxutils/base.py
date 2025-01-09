@@ -66,40 +66,14 @@ class ONNXRuntime:
             raise Exception("'init_runtime'을 먼저 호출하세요.")
         return ONNXRuntime._instance
 
-    def _inference(
+    @abstractmethod
+    def inference(
         self,
-        session: InferenceSession,
-        query: str,
-        device_type: Literal["cpu", "cuda"] = "cpu",
-    ):
-        inputs = self.tokenizer(query, padding="longest", return_tensors="np")
-        onnx_inputs = {
-            k: ort.OrtValue.ortvalue_from_numpy(v, device_type)
-            for k, v in inputs.items()
-        }
-        outputs = session.run(None, onnx_inputs)
-        dense = outputs[0][0].tolist()
-        indicies = inputs["input_ids"].tolist()[0]
-        weights = outputs[1].squeeze(-1)[0].tolist()
-        sparse = {k: w for k, w in zip(indicies, weights)}
-        return query, dense, sparse
-
-    @overload
-    def parallel_execution(self, queries: str) -> EmbedResult: ...
-
-    @overload
-    def parallel_execution(self, queries: List[str]) -> List[EmbedResult]: ...
-
-    def parallel_execution(
-        self, queries: str | List[str]
-    ) -> EmbedResult | List[EmbedResult]:
-        raise NotImplementedError()
-
-    def init_task(self):
-        raise NotImplementedError()
-
-    def release_task(self):
-        raise NotImplementedError()
+        queries: List[str],
+        session: Optional[InferenceSession] = None,
+        tokenizer: Optional[Any] = None,
+    ) -> List[EmbedResult]:
+        raise NotImplementedError("method 'inference' must be implemented")
 
     def release(self):
         raise NotImplementedError()
