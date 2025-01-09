@@ -71,3 +71,6 @@ class ONNXCpuRuntime(ONNXRuntime):
 
         return results
 
+    @property
+    def session(self):
+        return self._sessions[0]
