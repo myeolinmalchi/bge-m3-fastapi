@@ -62,7 +62,8 @@ class ONNXRuntime:
 
     @classmethod
     def get_runtime(cls):
-        assert ONNXRuntime._instance is not None
+        if ONNXRuntime._instance is None:
+            raise Exception("'init_runtime'을 먼저 호출하세요.")
         return ONNXRuntime._instance
 
     def _inference(
