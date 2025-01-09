@@ -24,26 +24,9 @@ class ONNXCudaRuntime(ONNXRuntime):
         )
         self.N = N
 
-    @overload
-    def parallel_execution(self, queries: str) -> EmbedResult: ...
 
-    @overload
-    def parallel_execution(self, queries: List[str]) -> List[EmbedResult]: ...
 
-    def parallel_execution(
-        self, queries: str | List[str]
-    ) -> EmbedResult | List[EmbedResult]:
-        _queries = queries if isinstance(queries, list) else [queries]
-        results = []
-        for query in _queries:
-            result = self._inference(self.session, query, device_type="cuda")
-            results.append(result)
 
-        return results
 
-    def init_task(self): ...
 
-    def release_task(self): ...
 
-    def release(self):
-        del self.session
