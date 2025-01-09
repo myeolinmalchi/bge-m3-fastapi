@@ -75,6 +75,21 @@ class ONNXRuntime:
     ) -> List[EmbedResult]:
         raise NotImplementedError("method 'inference' must be implemented")
 
+    def batch_inference(self, queries: List[str]) -> List[EmbedResult]:
+        session, tokenizer = self.session, self.tokenizer
+
+        def parts(_list, n):
+            for idx in range(0, len(_list), n):
+                yield _list[idx : idx + n]
+
+        _queries = list(parts(queries, self.batch_size))
+        results: List[EmbedResult] = []
+        from tqdm import tqdm
+
+        for qs in tqdm(_queries, desc="Batch inference"):
+            results += self.inference(qs, session, tokenizer)
+
+        return results
     def release(self):
         raise NotImplementedError()
 
