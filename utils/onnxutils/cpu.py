@@ -30,4 +30,44 @@ class ONNXCpuRuntime(ONNXRuntime):
 
         return tokenizers, [session]
 
+    def inference(
+        self,
+        queries: List[str],
+        session: Optional[InferenceSession] = None,
+        tokenizer: Optional[Any] = None,
+    ) -> List[EmbedResult]:
+        if len(queries) > self.batch_size:
+            raise Exception(
+                f"최대 배치 크기를 초과한 입력({len(queries)} > {self.max_workers})입니다."
+            )
+
+        session = self.session if session is None else session
+        tokenizer = self.tokenizer if tokenizer is None else tokenizer
+
+        inputs = self.tokenizer(
+            queries,
+            padding="longest",
+            return_tensors="np",
+            truncation=True,
         )
+
+        onnx_inputs = {
+            "input_ids": inputs["input_ids"],
+            "attention_mask": inputs["attention_mask"],
+        }
+
+        outputs = session.run(None, onnx_inputs)
+
+        dense_outputs = outputs[0]
+        sparse_outputs = [
+            {i: w for i, w in zip(indicies, weights)}
+            for indicies, weights in zip(inputs["input_ids"], outputs[1].squeeze(-1))
+        ]
+
+        results = [
+            EmbedResult(dense=dense, sparse=sparse, chunk=query)
+            for dense, sparse, query in zip(dense_outputs, sparse_outputs, queries)
+        ]
+
+        return results
+
