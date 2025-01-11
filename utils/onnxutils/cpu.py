@@ -1,98 +1,76 @@
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
-from queue import Queue
-from typing import List, overload
+from multiprocessing import cpu_count
+from typing import Any, List, Optional
 import onnxruntime as ort
+from onnxruntime.capi.onnxruntime_inference_collection import InferenceSession
 
 from schemas.embed import EmbedResult
+
 from .base import ONNXRuntime
+from transformers import AutoTokenizer
 
 
-class ONNXPoolExecutor(ONNXRuntime):
-    def __new__(cls, *args, **kwargs):
-        return super().__new__(cls, *args, **kwargs)
+class ONNXCpuRuntime(ONNXRuntime):
 
-    def __init__(
-        self,
-        tokenizer_path: str,
-        model_path: str,
-        N: int = 1,
-    ):
-        super().__init__(tokenizer_path, model_path, N)
-        self.sessions = [
-            ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
-            for _ in range(N)
-        ]
-        self.pool = ThreadPoolExecutor(max_workers=N)
-        self.queue = Queue()
-        self.num = 0
+    def _init_tokenizer_session_pool(self):
+        sess_options = ort.SessionOptions()
+        sess_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
+        sess_options.intra_op_num_threads = cpu_count() // 2
+        sess_options.inter_op_num_threads = cpu_count()
 
-    @classmethod
-    @contextmanager
-    def onnx_pool(cls):
-        if cls._instance is None:
-            raise Exception("ONNXRuntime 인스턴스가 정상적으로 생성되지 않았습니다.")
-        cls._instance.init_task()
-        yield cls._instance
-        cls._instance.release_task()
-
-    @overload
-    def parallel_execution(self, queries: str) -> EmbedResult: ...
-
-    @overload
-    def parallel_execution(self, queries: List[str]) -> List[EmbedResult]: ...
-
-    def parallel_execution(
-        self, queries: str | List[str]
-    ) -> EmbedResult | List[EmbedResult]:
-        with self.onnx_pool() as pool:
-            if isinstance(queries, str):
-                query = queries
-                pool.put(query)
-                result = pool.get()
-                if result is None:
-                    raise Exception("Error has been occured (ONNX)")
-                _, dense, sparse = result
-                return EmbedResult(dense=dense, sparse=sparse)
-
-            results: List[EmbedResult] = []
-            num = len(queries)
-            for idx in range(num + min(pool.N, num)):
-                if idx >= min(pool.N, num):
-                    result = pool.get()
-                    if result is None:
-                        raise Exception("Error has been occured (ONNX)")
-                    query, dense, sparse = result
-                    results.append(EmbedResult(dense=dense, sparse=sparse, chunk=query))
-                if idx < num:
-                    query = queries[idx]
-                    pool.put(query)
-            return results
-
-    def init_task(self):
-        if self.status_event.is_set():
-            self.status_event.wait()
-        self.status_event.set()
-
-    def release_task(self):
-        self.status_event.clear()
-
-    def put(self, query: str):
-        future = self.pool.submit(
-            self._inference, self.sessions[self.num % self.N], query
+        session = ort.InferenceSession(
+            self.model_path,
+            providers=["CPUExecutionProvider"],
+            sess_options=sess_options,
         )
-        self.queue.put(future)
-        self.num += 1
 
-    def get(self):
-        if self.queue.empty():
-            return None
-        future = self.queue.get()
-        result = future.result()
-        return result
+        tokenizers = [
+            AutoTokenizer.from_pretrained(self.tokenizer_path)
+            for _ in range(self.max_workers)
+        ]
 
-    def release(self):
-        self.pool.shutdown()
-        for session in self.sessions:
-            del session
-        del self.tokenizer
+        return tokenizers, [session]
+
+    def inference(
+        self,
+        queries: List[str],
+        session: Optional[InferenceSession] = None,
+        tokenizer: Optional[Any] = None,
+    ) -> List[EmbedResult]:
+        if len(queries) > self.batch_size:
+            raise Exception(
+                f"최대 배치 크기를 초과한 입력({len(queries)} > {self.max_workers})입니다."
+            )
+
+        session = self.session if session is None else session
+        tokenizer = self.tokenizer if tokenizer is None else tokenizer
+
+        inputs = self.tokenizer(
+            queries,
+            padding="longest",
+            return_tensors="np",
+            truncation=True,
+        )
+
+        onnx_inputs = {
+            "input_ids": inputs["input_ids"],
+            "attention_mask": inputs["attention_mask"],
+        }
+
+        outputs = session.run(None, onnx_inputs)
+
+        dense_outputs = outputs[0]
+        sparse_outputs = [
+            {i: w for i, w in zip(indicies, weights)}
+            for indicies, weights in zip(inputs["input_ids"], outputs[1].squeeze(-1))
+        ]
+
+        results = [
+            EmbedResult(dense=dense, sparse=sparse, chunk=query)
+            for dense, sparse, query in zip(dense_outputs, sparse_outputs, queries)
+        ]
+
+        return results
+
+    @property
+    def session(self):
+        return self._sessions[0]
