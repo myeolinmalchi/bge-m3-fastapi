@@ -20,4 +20,4 @@ RUN \
 EXPOSE 8000
 
 ENTRYPOINT ["poetry", "run", "python3.10", "main.py"]
-CMD ["--device", "cuda", "--batch-size", "2", "--max-workers", "2"]
+CMD ["--device", "cuda", "--batch-size", "1", "--max-workers", "1"]
