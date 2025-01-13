@@ -30,6 +30,6 @@ split_sentences = Kss("split_sentences")
 
 
 def split_chunks(query: str, max_chunk_length: int = 1000, offset: int = 100):
-    sentences = split_sentences(text=query, strip=True, backend="mecab", num_workers=4)
+    sentences = split_sentences(text=query, strip=True, backend="mecab")
     chunks = create_chunks(sentences, max_chunk_length, offset)
     return chunks
