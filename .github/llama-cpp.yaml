@@ -1,0 +1,36 @@
+name: CI/CD using github actions & docker
+
+on:
+  push:
+    branches: [ "feature/llama-cpp-python" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+    # Docker build & Push 
+    - name: Docker build & push to Docker hub
+      run: |
+        docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi .
+        docker push ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi
+
+    # EC2 배포
+    - name: Docker image pull & Deploy to EC2
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }} # EC2 인스턴스 퍼블릭 DNS
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_PRIVATE_KEY }} # pem 키
+        # 도커 작업
+        script: |
+          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi:latest
+          sudo docker stop $(sudo docker ps -a -q)
+          sudo docker run -d --log-driver=syslog -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi:latest
+          sudo docker rm $(sudo docker ps --filter 'status=exited' -a -q)
+          sudo docker image prune -a -f
