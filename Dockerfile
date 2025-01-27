@@ -5,7 +5,8 @@ RUN \
       apt-get update -y && \
       apt install software-properties-common -y && \
       add-apt-repository ppa:deadsnakes/ppa && \
-      apt install python3.10 curl -y 
+      apt install python3.10 curl -y && \
+      apt install build-essential -y
 RUN curl -sSL https://install.python-poetry.org | python3 - 
 
 ENV PATH="/root/.local/bin:$PATH"
