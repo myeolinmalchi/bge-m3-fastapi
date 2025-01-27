@@ -1,10 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from schemas.embed import EmbedRequest, EmbedResponse
-from utils.onnxutils import ONNXRuntime, init_runtime
+from utils.embed.base import AbsEmbedder
 from utils.preprocess import split_chunks
+from utils.embed import init_runtime
 
 from tqdm import tqdm
-
 
 app = FastAPI()
 
@@ -16,29 +16,34 @@ def heath_check():
 
 @app.post("/embed")
 async def embed(req: EmbedRequest) -> EmbedResponse:
-    runtime = ONNXRuntime.get_runtime()
-    if isinstance(req.inputs, list):
+    try:
+        runtime = AbsEmbedder.get_runtime()
+        if isinstance(req.inputs, list):
+            if not req.chunking:
+                results = await runtime.batch_inference_async(req.inputs)
+            else:
+                from itertools import chain, islice
+
+                chunks = [
+                    split_chunks(i) for i in tqdm(req.inputs, desc="Chunking")
+                ]
+                lens = [len(_chunks) for _chunks in chunks]
+                flatten_chunks = list(chain(*chunks))
+
+                temp = await runtime.batch_inference_async(flatten_chunks)
+                iterator = iter(temp)
+                results = [list(islice(iterator, length)) for length in lens]
+
+            return results
+
         if not req.chunking:
-            results = await runtime.abatch_inference(req.inputs)
-        else:
-            from itertools import chain, islice
-
-            chunks = [split_chunks(i) for i in tqdm(req.inputs, desc="Chunking")]
-            lens = [len(_chunks) for _chunks in chunks]
-            flatten_chunks = list(chain(*chunks))
-
-            temp = await runtime.abatch_inference(flatten_chunks)
-            iterator = iter(temp)
-            results = [list(islice(iterator, length)) for length in lens]
-
+            result = await runtime.batch_inference_async([req.inputs])
+            return result[0]
+        chunks = split_chunks(req.inputs)
+        results = await runtime.batch_inference_async(chunks)
         return results
-
-    if not req.chunking:
-        result = await runtime.abatch_inference([req.inputs])
-        return result[0]
-    chunks = split_chunks(req.inputs)
-    results = await runtime.abatch_inference(chunks)
-    return results
+    except Exception:
+        raise HTTPException(status_code=400, detail="Error has been occurred")
 
 
 if __name__ == "__main__":
@@ -46,6 +51,16 @@ if __name__ == "__main__":
     import uvicorn
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-b",
+        "--backend",
+        dest="backend",
+        action="store",
+        default="onnx",
+        choices=["onnx", "llama_cpp"],
+        help=
+        "Witch backend to use for inference (onnx/llama_cpp, default: onnx)",
+    )
     parser.add_argument(
         "-d",
         "--device",
@@ -55,7 +70,6 @@ if __name__ == "__main__":
         choices=["cpu", "cuda"],
         help="Witch device to use for inference (cpu/cuda, default: cpu)",
     )
-
     parser.add_argument(
         "-b",
         "--batch-size",
@@ -64,7 +78,14 @@ if __name__ == "__main__":
         default="1",
         help="Max batch size for inference (default: 1)",
     )
-
+    parser.add_argument(
+        "-m",
+        "--model-path",
+        dest="model_path",
+        action="store",
+        default="",
+        help="Path to model file",
+    )
     parser.add_argument(
         "-w",
         "--max-workers",
@@ -77,10 +98,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     device = str(args.device)
+    backend = str(args.backend)
     batch_size = int(args.batch_size)
     max_workers = int(args.max_workers)
+    model_path = str(args.model_path)
     assert device in ("cpu", "cuda")
-    init_runtime(device=device, batch_size=batch_size, max_workers=max_workers)
+    assert backend in ("onnx", "llama_cpp")
+
+    init_runtime(
+        device=device,
+        batch_size=batch_size,
+        max_workers=max_workers,
+        backend=backend,
+        model_path=model_path
+    )
 
     uvicorn.run(
         "main:app",
