@@ -20,5 +20,5 @@ RUN \
 
 EXPOSE 8000
 
-ENTRYPOINT ["poetry", "run", "python3.10", "main.py"]
-CMD ["--device", "cpu", "--batch-size", "1", "--max-workers", "2", "--backend", "llama_cpp", "--model-path", "models/bge-m3-q8_0.gguf"]
+ENTRYPOINT ["poetry", "run", "uvicorn", "main:app"]
+CMD ["--port", "8000", "--workers", "1", "--host", "0.0.0.0"]
