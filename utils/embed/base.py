@@ -5,13 +5,16 @@ from typing import Generic, List, Optional, Tuple, TypeVar
 import asyncio
 
 from schemas.embed import EmbedResult
-from utils.mixins.singleton import SingletonABCMeta
+
+from utils.logger import _logger
 
 S = TypeVar("S")
 T = TypeVar("T")
 
+logger = _logger(__name__)
 
-class AbsEmbedder(ABC, Generic[S, T], metaclass=SingletonABCMeta):
+
+class AbsEmbedder(ABC, Generic[S, T]):
     """
     Base class for text embedding
     """
@@ -38,10 +41,6 @@ class AbsEmbedder(ABC, Generic[S, T], metaclass=SingletonABCMeta):
         self._tokenizers = temp[1]
 
         self._session_index = 0
-
-    @classmethod
-    def get_runtime(cls, *args, **kwargs):
-        return cls(*args, **kwargs)
 
     @abstractmethod
     def _init_session_pool(self) -> Tuple[List[S], List[T]]:
@@ -79,6 +78,10 @@ class AbsEmbedder(ABC, Generic[S, T], metaclass=SingletonABCMeta):
                 yield _list[idx:idx + n]
 
         _queries = list(parts(queries, self.batch_size))
+
+        logger(f"Queries: {_queries}")
+        logger(f"Session, Tokenizer: {session}, {tokenizer}")
+
         results: List[EmbedResult] = []
         from tqdm import tqdm
 
