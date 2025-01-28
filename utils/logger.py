@@ -12,6 +12,7 @@ class _logger:
         if _logger._logger is None:
             _logger._logger = logging.getLogger(__name__)
             _logger._logger.setLevel(self.level)
+            _logger._logger.propagate = False
 
             handler = logging.StreamHandler()
             formatter = logging.Formatter(f"[{self.name}] %(message)s")
