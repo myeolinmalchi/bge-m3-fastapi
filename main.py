@@ -1,12 +1,30 @@
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import Depends, FastAPI, HTTPException
 from schemas.embed import EmbedRequest, EmbedResponse
-from utils.embed.base import AbsEmbedder
-from utils.preprocess import split_chunks
+from utils.text import preprocess, split_chunks
 from utils.embed import init_runtime
 
 from tqdm import tqdm
 
-app = FastAPI()
+runtime = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    args = {
+        "device": "cpu",
+        "backend": "llama_cpp",
+        "batch_size": 4,
+        "max_workers": 2,
+        "model_path": "models/bge-m3-f16.gguf",
+    }
+
+    runtime = init_runtime(**args)
+    yield
+    runtime.release()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -15,17 +33,19 @@ def heath_check():
 
 
 @app.post("/embed")
-async def embed(req: EmbedRequest) -> EmbedResponse:
+async def embed(
+    req: EmbedRequest, runtime=Depends(init_runtime)
+) -> EmbedResponse:
     try:
-        runtime = AbsEmbedder.get_runtime()
-        if isinstance(req.inputs, list):
+        cleaned = preprocess(req.inputs)
+        if isinstance(cleaned, list):
             if not req.chunking:
-                results = await runtime.batch_inference_async(req.inputs)
+                results = await runtime.batch_inference_async(cleaned)
             else:
                 from itertools import chain, islice
 
                 chunks = [
-                    split_chunks(i) for i in tqdm(req.inputs, desc="Chunking")
+                    split_chunks(i) for i in tqdm(cleaned, desc="Chunking")
                 ]
                 lens = [len(_chunks) for _chunks in chunks]
                 flatten_chunks = list(chain(*chunks))
@@ -37,86 +57,12 @@ async def embed(req: EmbedRequest) -> EmbedResponse:
             return results
 
         if not req.chunking:
-            result = await runtime.batch_inference_async([req.inputs])
+            result = await runtime.batch_inference_async([cleaned])
             return result[0]
-        chunks = split_chunks(req.inputs)
+        chunks = split_chunks(cleaned)
         results = await runtime.batch_inference_async(chunks)
         return results
-    except Exception:
-        raise HTTPException(status_code=400, detail="Error has been occurred")
-
-
-if __name__ == "__main__":
-    import argparse
-    import uvicorn
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-b",
-        "--backend",
-        dest="backend",
-        action="store",
-        default="onnx",
-        choices=["onnx", "llama_cpp"],
-        help=
-        "Witch backend to use for inference (onnx/llama_cpp, default: onnx)",
-    )
-    parser.add_argument(
-        "-d",
-        "--device",
-        dest="device",
-        action="store",
-        default="cpu",
-        choices=["cpu", "cuda"],
-        help="Witch device to use for inference (cpu/cuda, default: cpu)",
-    )
-    parser.add_argument(
-        "-b",
-        "--batch-size",
-        dest="batch_size",
-        action="store",
-        default="1",
-        help="Max batch size for inference (default: 1)",
-    )
-    parser.add_argument(
-        "-m",
-        "--model-path",
-        dest="model_path",
-        action="store",
-        default="",
-        help="Path to model file",
-    )
-    parser.add_argument(
-        "-w",
-        "--max-workers",
-        dest="max_workers",
-        action="store",
-        default="1",
-        help="(cuda) Number of inference sessions (default: 1)",
-    )
-
-    args = parser.parse_args()
-
-    device = str(args.device)
-    backend = str(args.backend)
-    batch_size = int(args.batch_size)
-    max_workers = int(args.max_workers)
-    model_path = str(args.model_path)
-    assert device in ("cpu", "cuda")
-    assert backend in ("onnx", "llama_cpp")
-
-    init_runtime(
-        device=device,
-        batch_size=batch_size,
-        max_workers=max_workers,
-        backend=backend,
-        model_path=model_path
-    )
-
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False,
-        timeout_keep_alive=600,
-    )
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Error has been occurred {e}"
+        )
