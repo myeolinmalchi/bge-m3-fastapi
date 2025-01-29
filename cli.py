@@ -1,15 +1,15 @@
 import argparse
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 class Args(TypedDict):
     device: Literal["cpu", "cuda"]
     backend: Literal["onnx", "llama_cpp"]
     model_path: str
+    tokenizer_path: NotRequired[str]
 
     batch_size: int
     sessions: int
-    workers: int
 
 
 def init_server_args() -> Args:
@@ -51,15 +51,6 @@ def init_server_args() -> Args:
         help="Number of session instances for parallel processing. (default: 1)"
     )
     parser.add_argument(
-        "-w",
-        "--workers",
-        dest="workers",
-        action="store",
-        default="1",
-        type=int,
-        help="Number of uvicorn worker process. (default: 1)"
-    )
-    parser.add_argument(
         "-m",
         "--model-path",
         dest="model_path",
@@ -68,13 +59,15 @@ def init_server_args() -> Args:
         help="Path to the model file. Required for model inference."
     )
 
+    parser.add_argument(
+        "-t",
+        "--tokenizer-path",
+        dest="tokenizer_path",
+        action="store",
+        type=str,
+        help="Path to the tokenizer file."
+    )
+
     args = parser.parse_args()
 
-    return Args(
-        device=args.device,
-        batch_size=args.batch_size,
-        backend=args.backend,
-        sessions=args.sessions,
-        workers=args.workers,
-        model_path=args.model_path
-    )
+    return Args(**args.__dict__)

@@ -47,6 +47,7 @@ async def embed(
         results = await runtime.batch_inference_async(chunks)
         return results
     except Exception as e:
+        print(e)
         raise HTTPException(
             status_code=400, detail=f"Error has been occurred {e}"
         )
@@ -57,13 +58,7 @@ if __name__ == "__main__":
 
     args = cli.init_server_args()
 
-    init_runtime(
-        model_path=args['model_path'],
-        batch_size=args['batch_size'],
-        max_workers=args['sessions'],
-        backend=args['backend'],
-        device=args['device']
-    )
+    init_runtime(**args)
 
     uvicorn.run(
         "main:app",
@@ -71,5 +66,5 @@ if __name__ == "__main__":
         port=8000,
         reload=False,
         timeout_keep_alive=600,
-        workers=args['workers']
+        workers=1
     )
