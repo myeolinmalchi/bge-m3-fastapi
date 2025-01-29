@@ -1,30 +1,14 @@
-from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException
 from schemas.embed import EmbedRequest, EmbedResponse
 from utils.text import preprocess, split_chunks
 from utils.embed import init_runtime
+import cli
 
 from tqdm import tqdm
 
 runtime = None
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    args = {
-        "device": "cpu",
-        "backend": "llama_cpp",
-        "batch_size": 4,
-        "max_workers": 2,
-        "model_path": "models/bge-m3-f16.gguf",
-    }
-
-    runtime = init_runtime(**args)
-    yield
-    runtime.release()
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 
 @app.get("/")
@@ -66,3 +50,26 @@ async def embed(
         raise HTTPException(
             status_code=400, detail=f"Error has been occurred {e}"
         )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    args = cli.init_server_args()
+
+    init_runtime(
+        model_path=args['model_path'],
+        batch_size=args['batch_size'],
+        max_workers=args['sessions'],
+        backend=args['backend'],
+        device=args['device']
+    )
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+        timeout_keep_alive=600,
+        workers=args['workers']
+    )
