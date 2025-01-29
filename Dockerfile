@@ -7,6 +7,7 @@ RUN \
       add-apt-repository ppa:deadsnakes/ppa && \
       apt install python3.10 curl -y && \
       apt install build-essential -y
+
 RUN curl -sSL https://install.python-poetry.org | python3 - 
 
 ENV PATH="/root/.local/bin:$PATH"
@@ -21,4 +22,4 @@ RUN \
 EXPOSE 8000
 
 ENTRYPOINT ["poetry", "run", "python3.10", "main.py"]
-CMD ["--device", "cpu", "--batch-size", "1", "--backend", "llama_cpp", "--sessions", "1", "--workers", "1", "--model-path", "models/bge-m3-q8_0.gguf"]
+CMD ["--device", "cuda", "--batch-size", "1", "--backend", "onnx", "--sessions", "1", "--model-path", "./models/model.onnx"]
