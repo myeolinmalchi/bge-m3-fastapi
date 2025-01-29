@@ -79,9 +79,6 @@ class AbsEmbedder(ABC, Generic[S, T]):
 
         _queries = list(parts(queries, self.batch_size))
 
-        logger(f"Queries: {_queries}")
-        logger(f"Session, Tokenizer: {session}, {tokenizer}")
-
         results: List[EmbedResult] = []
         from tqdm import tqdm
 
