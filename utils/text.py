@@ -66,13 +66,12 @@ def preprocess(text: str | List[str], **kwargs) -> str | List[str]:
             reduce_emoticon_repeats_over=2
         )
         texts.append(temp)
-    """텍스트 전처리"""
 
     cleaned = [preprocess_single(t) for t in texts]
     return cleaned[0] if isinstance(text, str) else cleaned
 
 
-def split_chunks(query: str, max_chunk_length: int = 1000, offset: int = 100):
+def split_chunks(query: str, max_chunk_length: int = 500, offset: int = 50):
     sentences = split_sentences(text=query, strip=True, backend="mecab")
     chunks = create_chunks(sentences, max_chunk_length, offset)
     return chunks
