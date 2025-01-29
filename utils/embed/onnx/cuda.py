@@ -10,8 +10,8 @@ from .base import ONNXEmbedder
 
 class ONNXCudaRuntime(ONNXEmbedder):
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.device_type = "cuda"
         self.device_id = 0
 
@@ -33,7 +33,7 @@ class ONNXCudaRuntime(ONNXEmbedder):
             for _ in range(self.max_workers)
         ]
 
-        return tokenizers, sessions
+        return sessions, tokenizers
 
     def inference(
         self,

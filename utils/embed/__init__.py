@@ -14,7 +14,7 @@ def init_runtime(
     model_path: Optional[str] = None,
     tokenizer_path: Optional[str] = None,
     batch_size: int = 1,
-    max_workers: int = 1,
+    sessions: int = 1,
     backend: Literal["onnx", "llama_cpp"] = "onnx",
     device: Literal["cpu", "cuda"] = "cpu",
 ):
@@ -27,8 +27,12 @@ def init_runtime(
         match backend:
             case "onnx":
                 Embedder = ONNXCpuRuntime if device == "cpu" else ONNXCudaRuntime
+                tokenizer_path = tokenizer_path if tokenizer_path else "BAAI/bge-m3"
                 _runtime = Embedder(
-                    model_path, tokenizer_path, batch_size, max_workers
+                    model_path,
+                    tokenizer_path,
+                    batch_size,
+                    sessions,
                 )
             case "llama_cpp":
                 if device == "cuda":
@@ -37,7 +41,7 @@ def init_runtime(
                         level="warning"
                     )
                 _runtime = LlamaCppEmbedder(
-                    model_path, batch_size=batch_size, max_workers=max_workers
+                    model_path, batch_size=batch_size, max_workers=sessions
                 )
 
     return _runtime
