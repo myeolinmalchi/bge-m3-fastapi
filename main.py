@@ -21,16 +21,19 @@ async def embed(
     req: EmbedRequest, runtime=Depends(init_runtime)
 ) -> EmbedResponse:
     try:
-        cleaned = preprocess(req.inputs)
-        if isinstance(cleaned, list):
+        inputs = req.inputs
+        if isinstance(inputs, list):
             if not req.chunking:
-                results = await runtime.batch_inference_async(cleaned)
+                inputs = preprocess(inputs)
+                results = await runtime.batch_inference_async(inputs)
             else:
                 from itertools import chain, islice
 
                 chunks = [
-                    split_chunks(i) for i in tqdm(cleaned, desc="Chunking")
+                    split_chunks(i) for i in tqdm(inputs, desc="Chunking")
                 ]
+
+                chunks = [preprocess(chunk) for chunk in chunks]
                 lens = [len(_chunks) for _chunks in chunks]
                 flatten_chunks = list(chain(*chunks))
 
@@ -41,13 +44,14 @@ async def embed(
             return results
 
         if not req.chunking:
+            cleaned = preprocess(inputs)
             result = await runtime.batch_inference_async([cleaned])
             return result[0]
-        chunks = split_chunks(cleaned)
-        results = await runtime.batch_inference_async(chunks)
+        chunks = split_chunks(inputs)
+        cleaned = preprocess(chunks)
+        results = await runtime.batch_inference_async(cleaned)
         return results
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=400, detail=f"Error has been occurred {e}"
         )
