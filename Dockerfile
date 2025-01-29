@@ -12,7 +12,9 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="/root/.local/bin:$PATH"
 
 COPY . /app
-COPY pyproject.toml poetry.lock /app/
+COPY pyproject.toml /app/
+
+ENV CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS"
 
 RUN \
       poetry config virtualenvs.create false && \
