@@ -1,12 +1,7 @@
 from typing import Literal, Optional
-
-from .onnx import *
-from .llama_cpp import *
-
 from utils.logger import _logger
 
 logger = _logger(__name__)
-
 _runtime = None
 
 
@@ -26,6 +21,7 @@ def init_runtime(
 
         match backend:
             case "onnx":
+                from .onnx import ONNXCpuRuntime, ONNXCudaRuntime
                 Embedder = ONNXCpuRuntime if device == "cpu" else ONNXCudaRuntime
                 tokenizer_path = tokenizer_path if tokenizer_path else "BAAI/bge-m3"
                 _runtime = Embedder(
@@ -35,6 +31,7 @@ def init_runtime(
                     sessions,
                 )
             case "llama_cpp":
+                from .llama_cpp import LlamaCppEmbedder
                 if device == "cuda":
                     logger(
                         "'llama_cpp' backend supports cpu only.",
