@@ -35,6 +35,8 @@ class LlamaCppSession(llama_cpp.Llama):
             in_features=1024, out_features=1024
         )
 
+        logger("Initialized LlamaCppSession")
+
     def _process_token_weights(
         self, token_weights: np.ndarray, input_ids: List[int]
     ) -> Dict[int, float]:
@@ -87,7 +89,9 @@ class LlamaCppSession(llama_cpp.Llama):
             index=input_ids_tensor.unsqueeze(-1),
             src=token_weights_tensor
         )
-        logger(f"Sparse embedding tensor: {sparse_embedding_tensor.size()}")
+        logger(
+            f"Sparse embedding tensor size: {sparse_embedding_tensor.size()}"
+        )
 
         unused_tokens = ["<s>", "</s>", "<pad>", "<unk>"]
         unused_token_ids = [
@@ -95,7 +99,7 @@ class LlamaCppSession(llama_cpp.Llama):
         ]
 
         sparse_result_tensor = torch.max(sparse_tensors, dim=0).values
-        logger(f"Sparse result tensor: {sparse_result_tensor.size()}")
+        logger(f"Sparse result tensor size: {sparse_result_tensor.size()}")
         sparse_result_tensor[unused_token_ids] *= 0.
 
         sparse_result_tensor = torch.nan_to_num(sparse_result_tensor, 0)
@@ -116,6 +120,7 @@ class LlamaCppSession(llama_cpp.Llama):
         Returns:
             A list of embeddings
         """
+
         n_embd = self.n_embd()
         n_batch = self.n_batch
 
@@ -170,7 +175,7 @@ class LlamaCppSession(llama_cpp.Llama):
         p_batch = 0
 
         # accumulate batches and encode
-        for text in inputs:
+        for idx, text in enumerate(inputs):
             _input_ids = self.tokenize(text.encode("utf-8"))
             if truncate:
                 _input_ids = _input_ids[:n_batch]

@@ -6,11 +6,12 @@ from utils.logger import _logger
 logger = _logger(__name__)
 
 
-class LlamaCppEmbedder(AbsEmbedder[LlamaCppSession, None]):
+class LlamaCppEmbedder(AbsEmbedder):
 
     def _init_session_pool(self):
         sessions = [
-            LlamaCppSession(self.model_path) for _ in range(self.max_workers)
+            LlamaCppSession(self.model_path, truncate=True)
+            for _ in range(self.max_workers)
         ]
 
         return sessions, []
