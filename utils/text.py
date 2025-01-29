@@ -4,8 +4,6 @@ from typing import List
 from kss import Kss
 from kss._utils.logger import logger
 
-logger.addFilter(lambda record: False)
-
 split_sentences = Kss("split_sentences")
 normalize = Kss("normalize")
 
@@ -70,9 +68,8 @@ def preprocess(text: str | List[str], **kwargs) -> str | List[str]:
         texts.append(temp)
     """텍스트 전처리"""
 
-    #tasks = [run_in_threadpool(preprocess_single, t) for t in text]
     cleaned = [preprocess_single(t) for t in texts]
-    return cleaned
+    return cleaned[0] if isinstance(text, str) else cleaned
 
 
 def split_chunks(query: str, max_chunk_length: int = 1000, offset: int = 100):
