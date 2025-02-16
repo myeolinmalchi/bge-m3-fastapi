@@ -1,10 +1,10 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from schemas.embed import EmbedRequest, EmbedResponse
-from utils.onnxutils import ONNXRuntime, init_runtime
-from utils.preprocess import split_chunks
-
-from tqdm import tqdm
-
+from utils.embed.base import AbsEmbedder
+from utils.preprocess.text import md
+from utils.text import preprocess, split_chunks
+from utils.embed import init_runtime
+import cli
 
 app = FastAPI()
 
@@ -15,72 +15,62 @@ def heath_check():
 
 
 @app.post("/embed")
-async def embed(req: EmbedRequest) -> EmbedResponse:
-    runtime = ONNXRuntime.get_runtime()
-    if isinstance(req.inputs, list):
-        if not req.chunking:
-            results = await runtime.abatch_inference(req.inputs)
-        else:
-            from itertools import chain, islice
+async def embed(
+    req: EmbedRequest, runtime: AbsEmbedder = Depends(init_runtime)
+) -> EmbedResponse:
+    from itertools import chain, islice
 
-            chunks = [split_chunks(i) for i in tqdm(req.inputs, desc="Chunking")]
-            lens = [len(_chunks) for _chunks in chunks]
-            flatten_chunks = list(chain(*chunks))
+    try:
+        match req:
+            case EmbedRequest(inputs=list(inputs), html=True):
+                markdowns = [md(input) for input in inputs]
+                results = await runtime.batch_inference_async(markdowns)
+                response = [[result] for result in results]
 
-            temp = await runtime.abatch_inference(flatten_chunks)
-            iterator = iter(temp)
-            results = [list(islice(iterator, length)) for length in lens]
+            case EmbedRequest(inputs=list(inputs), chunking=True, html=False):
+                chunks = [preprocess(chunk) for chunk in inputs]
+                lens = [len(_chunks) for _chunks in chunks]
+                flatten_chunks = list(chain(*chunks))
 
-        return results
+                iterator = iter(
+                    await runtime.batch_inference_async(flatten_chunks)
+                )
 
-    if not req.chunking:
-        result = await runtime.abatch_inference([req.inputs])
-        return result[0]
-    chunks = split_chunks(req.inputs)
-    results = await runtime.abatch_inference(chunks)
-    return results
+                response = [list(islice(iterator, length)) for length in lens]
+
+            case EmbedRequest(inputs=str(input), chunking=False):
+                cleaned = preprocess(input)
+
+                assert isinstance(cleaned, str)
+
+                result = await runtime.batch_inference_async([cleaned])
+                response = result[0]
+
+            case EmbedRequest(inputs=str(input), chunking=True):
+                chunks = split_chunks(input)
+                cleaned = preprocess(chunks)
+
+                assert isinstance(cleaned, list)
+
+                response = await runtime.batch_inference_async(cleaned)
+
+            case _:
+                response = []
+
+        return response
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Error has been occurred {e}"
+        )
 
 
 if __name__ == "__main__":
-    import argparse
     import uvicorn
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-d",
-        "--device",
-        dest="device",
-        action="store",
-        default="cpu",
-        choices=["cpu", "cuda"],
-        help="Witch device to use for inference (cpu/cuda, default: cpu)",
-    )
+    args = cli.init_server_args()
 
-    parser.add_argument(
-        "-b",
-        "--batch-size",
-        dest="batch_size",
-        action="store",
-        default="1",
-        help="Max batch size for inference (default: 1)",
-    )
-
-    parser.add_argument(
-        "-w",
-        "--max-workers",
-        dest="max_workers",
-        action="store",
-        default="1",
-        help="(cuda) Number of inference sessions (default: 1)",
-    )
-
-    args = parser.parse_args()
-
-    device = str(args.device)
-    batch_size = int(args.batch_size)
-    max_workers = int(args.max_workers)
-    assert device in ("cpu", "cuda")
-    init_runtime(device=device, batch_size=batch_size, max_workers=max_workers)
+    init_runtime(**args)
 
     uvicorn.run(
         "main:app",
@@ -88,4 +78,5 @@ if __name__ == "__main__":
         port=8000,
         reload=False,
         timeout_keep_alive=600,
+        workers=1
     )

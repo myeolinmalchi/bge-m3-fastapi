@@ -6,6 +6,7 @@ class EmbedRequest(BaseModel):
     inputs: List[str] | str
     truncate: bool = True
     chunking: bool = True
+    html: bool = True
 
 
 class EmbedResult(BaseModel):

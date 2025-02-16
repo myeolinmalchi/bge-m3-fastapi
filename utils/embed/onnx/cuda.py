@@ -5,17 +5,17 @@ from onnxruntime.capi.onnxruntime_inference_collection import InferenceSession
 from transformers import AutoTokenizer
 from schemas.embed import EmbedResult
 
-from .base import ONNXRuntime
+from .base import ONNXEmbedder
 
 
-class ONNXCudaRuntime(ONNXRuntime):
+class ONNXCudaRuntime(ONNXEmbedder):
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.device_type = "cuda"
         self.device_id = 0
 
-    def _init_tokenizer_session_pool(self):
+    def _init_session_pool(self):
         sess_options = ort.SessionOptions()
         sess_options.inter_op_num_threads = cpu_count() // 2
         providers = [("CUDAExecutionProvider", {"device_id": 0})]
@@ -25,8 +25,7 @@ class ONNXCudaRuntime(ONNXRuntime):
                 self.model_path,
                 providers=providers,
                 sess_options=sess_options,
-            )
-            for _ in range(self.max_workers)
+            ) for _ in range(self.max_workers)
         ]
 
         tokenizers = [
@@ -34,23 +33,28 @@ class ONNXCudaRuntime(ONNXRuntime):
             for _ in range(self.max_workers)
         ]
 
-        return tokenizers, sessions
+        return sessions, tokenizers
 
     def inference(
         self,
         queries: List[str],
         session: Optional[InferenceSession] = None,
         tokenizer: Optional[Any] = None,
+        **kwargs
     ):
         if len(queries) > self.batch_size:
             raise Exception(
                 f"최대 배치 크기를 초과한 입력({len(queries)} > {self.max_workers})입니다."
             )
 
-        session = self.session if session is None else session
-        tokenizer = self.tokenizer if tokenizer is None else tokenizer
+        _session, _tokenizer = self.session
+        session = _session if session is None else session
+        tokenizer = _tokenizer if tokenizer is None else tokenizer
 
-        inputs = self.tokenizer(
+        if not tokenizer:
+            raise ValueError("Tokenizer is not initialized.")
+
+        inputs = tokenizer(
             queries,
             padding="longest",
             return_tensors="np",
@@ -82,15 +86,16 @@ class ONNXCudaRuntime(ONNXRuntime):
 
         dense_outputs = outputs[0].numpy()
         sparse_outputs = [
-            {i: w for i, w in zip(indicies, weights)}
-            for indicies, weights in zip(
-                inputs["input_ids"], outputs[1].numpy().squeeze(-1)
-            )
+            {
+                i: w
+                for i, w in zip(indicies, weights)
+            } for indicies, weights in
+            zip(inputs["input_ids"], outputs[1].numpy().squeeze(-1))
         ]
 
         results = [
-            EmbedResult(dense=dense, sparse=sparse, chunk=query)
-            for dense, sparse, query in zip(dense_outputs, sparse_outputs, queries)
+            EmbedResult(dense=dense, sparse=sparse, chunk=query) for dense,
+            sparse, query in zip(dense_outputs, sparse_outputs, queries)
         ]
 
         return results
