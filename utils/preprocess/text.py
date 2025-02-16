@@ -1,8 +1,11 @@
 """텍스트 전처리 유틸 함수 모음"""
 
 from typing import List
+from bs4 import BeautifulSoup
 from kss import Kss
-from kss._utils.logger import logger
+from markdownify import MarkdownConverter
+
+from utils.preprocess.html import clean_html
 
 split_sentences = Kss("split_sentences")
 normalize = Kss("normalize")
@@ -75,3 +78,23 @@ def split_chunks(query: str, max_chunk_length: int = 500, offset: int = 50):
     sentences = split_sentences(text=query, strip=True, backend="mecab")
     chunks = create_chunks(sentences, max_chunk_length, offset)
     return chunks
+
+
+class KeepTableConverter(MarkdownConverter):
+
+    def parse_table(self, el, text, **kwargs):
+        return "\n\n<|TABLE|>"
+
+
+def md(html: str | BeautifulSoup, **options) -> str:
+    """Convert html to markdown string"""
+
+    soup = BeautifulSoup(html, "html.parser") if isinstance(html, str) else html
+    tables = soup.select("table")
+    markdown = KeepTableConverter(**options).convert(html)
+    for idx, table in enumerate(tables):
+        markdown = markdown.replace(
+            "<|TABLE|>", str(table.prettify(formatter="html5")), idx + 1
+        )
+
+    return markdown

@@ -13,15 +13,15 @@ kss = "^6.0.4"
 transformers = "4.37.2"
 tqdm = "^4.67.1"
 python-mecab-ko = "^1.3.7"
-llama-cpp-python = "^0.3.6"
-torch = {version = "^2.5.1", source = "pytorch-cpu"}
-torchvision = {version = "^0.20.1", source = "pytorch-cpu"}
-torchaudio = {version = "^2.5.1", source = "pytorch-cpu"}
-onnxruntime = "^1.20.1"
+torch = {version = "^2.6.0", source = "torch-cpu"}
+torchvision = {version = "^0.21.0", source = "torch-cpu"}
+torchaudio = {version = "^2.6.0", source = "torch-cpu"}
+llama-cpp-python = {version = "^0.3.2", source = "llama-cpp-python"}
+markdownify = "^0.14.1"
+beautifulsoup4 = "^4.13.3"
 
 [tool.poetry.group.dev.dependencies]
 yapf = "^0.43.0"
-
 
 
 [[tool.poetry.source]]
@@ -31,7 +31,7 @@ priority = "explicit"
 
 
 [[tool.poetry.source]]
-name = "pytorch-cpu"
+name = "torch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 priority = "explicit"
 

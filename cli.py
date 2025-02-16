@@ -1,12 +1,12 @@
 import argparse
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, TypedDict
 
 
-class Args(TypedDict):
+class Args(TypedDict, total=False):
     device: Literal["cpu", "cuda"]
     backend: Literal["onnx", "llama_cpp"]
     model_path: str
-    tokenizer_path: NotRequired[str]
+    tokenizer_path: str
 
     batch_size: int
     sessions: int
