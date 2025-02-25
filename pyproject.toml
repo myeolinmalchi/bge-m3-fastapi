@@ -17,6 +17,8 @@ onnxruntime-gpu = "^1.20.1"
 torch = "^2.5.1"
 torchvision = "^0.20.1"
 torchaudio = "^2.5.1"
+markdownify = "^0.14.1"
+beautifulsoup4 = "^4.13.3"
 
 [tool.poetry.group.dev.dependencies]
 yapf = "^0.43.0"

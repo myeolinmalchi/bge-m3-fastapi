@@ -15,30 +15,30 @@ def heath_check():
 
 
 @app.post("/embed")
-async def embed(
-    req: EmbedRequest, runtime: AbsEmbedder = Depends(init_runtime)
-) -> EmbedResponse:
+async def embed(req: EmbedRequest, runtime: AbsEmbedder = Depends(init_runtime)) -> EmbedResponse:
     from itertools import chain, islice
 
     try:
         match req:
-            case EmbedRequest(inputs=list(inputs), html=True):
+            case EmbedRequest(inputs=list(inputs), html=True, chunking=True):
                 markdowns = [md(input) for input in inputs]
                 results = await runtime.batch_inference_async(markdowns)
                 response = [[result] for result in results]
 
-            case EmbedRequest(inputs=list(inputs), chunking=True, html=False):
+            case EmbedRequest(inputs=list(inputs), html=True, chunking=False):
+                markdowns = [md(input) for input in inputs]
+                response = await runtime.batch_inference_async(markdowns)
+
+            case EmbedRequest(inputs=list(inputs), html=False, chunking=True):
                 chunks = [preprocess(chunk) for chunk in inputs]
                 lens = [len(_chunks) for _chunks in chunks]
                 flatten_chunks = list(chain(*chunks))
 
-                iterator = iter(
-                    await runtime.batch_inference_async(flatten_chunks)
-                )
+                iterator = iter(await runtime.batch_inference_async(flatten_chunks))
 
                 response = [list(islice(iterator, length)) for length in lens]
 
-            case EmbedRequest(inputs=str(input), chunking=False):
+            case EmbedRequest(inputs=str(input), html=False, chunking=False):
                 cleaned = preprocess(input)
 
                 assert isinstance(cleaned, str)
@@ -60,9 +60,7 @@ async def embed(
         return response
 
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Error has been occurred {e}"
-        )
+        raise HTTPException(status_code=400, detail=f"Error has been occurred {e}")
 
 
 if __name__ == "__main__":
@@ -72,11 +70,4 @@ if __name__ == "__main__":
 
     init_runtime(**args)
 
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False,
-        timeout_keep_alive=600,
-        workers=1
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False, timeout_keep_alive=600, workers=1)

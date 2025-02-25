@@ -99,6 +99,10 @@ class AbsEmbedder(ABC, Generic[S, T]):
         result = await loop.run_in_executor(
             self._pool, self.batch_inference, queries
         )
+        for e in result:
+            if e.chunk:
+                e.chunk = e.chunk.encode(errors="ignore").decode("utf-8")
+
         return result
 
     def release(self):
