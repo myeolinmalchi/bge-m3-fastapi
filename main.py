@@ -33,10 +33,12 @@ async def embed(req: EmbedRequest, runtime: AbsEmbedder = Depends(init_runtime))
                 chunks = [preprocess(chunk) for chunk in inputs]
                 lens = [len(_chunks) for _chunks in chunks]
                 flatten_chunks = list(chain(*chunks))
-
                 iterator = iter(await runtime.batch_inference_async(flatten_chunks))
 
                 response = [list(islice(iterator, length)) for length in lens]
+
+            case EmbedRequest(inputs=list(inputs), html=False, chunking=False):
+                response = await runtime.batch_inference_async(inputs)
 
             case EmbedRequest(inputs=str(input), html=False, chunking=False):
                 cleaned = preprocess(input)
