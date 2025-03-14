@@ -11,18 +11,14 @@ split_sentences = Kss("split_sentences")
 normalize = Kss("normalize")
 
 
-def create_chunks(sentences: List[str], max_chunk_length: int,
-                  offset: int) -> List[str]:
+def create_chunks(sentences: List[str], max_chunk_length: int, offset: int) -> List[str]:
 
     if max_chunk_length < offset:
         raise Exception("max_chunk_length must be larger than offset.")
 
     chunks, current = [], ""
     for sentence in sentences:
-        new_chunk = (
-            current + " " +
-            sentence.strip() if len(current) > 0 else sentence.strip()
-        )
+        new_chunk = (current + " " + sentence.strip() if len(current) > 0 else sentence.strip())
         if len(new_chunk) <= max_chunk_length:
             current = new_chunk
         else:
@@ -80,21 +76,31 @@ def split_chunks(query: str, max_chunk_length: int = 500, offset: int = 50):
     return chunks
 
 
+TABLE_PLACEHOLDER = "<|TABLE|>"
+
+
 class KeepTableConverter(MarkdownConverter):
 
-    def parse_table(self, el, text, **kwargs):
-        return "\n\n<|TABLE|>"
+    def convert_table(self, el, text, convert_as_inline):
+        return '\n\n' + TABLE_PLACEHOLDER + '\n'
 
 
 def md(html: str | BeautifulSoup, **options) -> str:
     """Convert html to markdown string"""
+    from time import time
 
+    st = time()
     soup = BeautifulSoup(html, "html.parser") if isinstance(html, str) else html
+
+    st = time()
     tables = soup.select("table")
+
+    st = time()
     markdown = KeepTableConverter(**options).convert(html)
+
+    st = time()
     for idx, table in enumerate(tables):
-        markdown = markdown.replace(
-            "<|TABLE|>", str(table.prettify(formatter="html5")), idx + 1
-        )
+        table_str = str(table.prettify(formatter="html5"))
+        markdown = markdown.replace(TABLE_PLACEHOLDER, table_str, idx + 1)
 
     return markdown
