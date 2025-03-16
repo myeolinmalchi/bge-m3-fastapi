@@ -1,38 +1,47 @@
-name: CI/CD using github actions & docker
+name: CD with docker-compose
 
 on:
   push:
-    branches: [ "llama-cpp" ]
+    branches: [ "feature/llama-cpp-python" ]
+  pull_request:
+    branches: [ "feature/llama-cpp-python" ]
+
+permissions:
+  contents: read
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    env:
+      DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }}
 
     steps:
-    - uses: actions/checkout@v4
-    # Docker build & Push 
-    - name: Docker build & push to Docker hub
-      run: |
-        docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_HUB_TOKEN }}
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi .
-        docker push ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi
+      - uses: actions/checkout@v4
 
-    # EC2 배포
-    - name: Docker image pull & Deploy to EC2
-      uses: appleboy/ssh-action@master
-      id: deploy
-      with:
-        host: ${{ secrets.EC2_HOST }} # EC2 인스턴스 퍼블릭 DNS
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_PRIVATE_KEY }} # pem 키
-        envs: GITHUB_SHA
-        # 도커 작업
-        script: |
-          sudo docker pull ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi:latest
-          sudo docker stop $(sudo docker ps -a -q)
-          sudo docker run -d --log-driver=syslog -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi:latest
-          sudo docker rm $(sudo docker ps --filter 'status=exited' -a -q)
-          sudo docker image prune -a -f
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Docker build
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker build --tag "${{ secrets.DOCKER_REPO }}:latest"
+          docker push ${{ secrets.DOCKER_USERNAME }}/bge-m3-fastapi
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        env:
+          DOCKER_REPO: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPO }} 
+        id: deploy
+        with: 
+          host: ${{ secrets.HOST }}
+          username: ec2-user
+          key: ${{ secrets.KEY }}
+          envs: DOCKER_REPO
+          script: |
+            docker rm -f $(docker ps -qa)
+            docker pull ${{ secrets.DOCKER_REPO }}:latest
+            docker run -d --log-driver=syslog -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}:latest
+
